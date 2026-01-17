@@ -109,5 +109,4 @@ Creating AI for cognitive impairment requires strict truthfulness.
     - **Simulate**: Click "+ SIMULATE CAREGIVER" to test external data ingestion.
     - **Recall**: Click the search icon and *listen* to your memories read back to you.
 
----
-*Built with ❤️ for the Qdrant Convolve Hackathon.*
+
