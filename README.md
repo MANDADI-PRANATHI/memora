@@ -7,7 +7,7 @@
 ## 01. Problem Statement
 **The Challenge**: Over 55 million people worldwide live with dementia or Alzheimer's. Losing one's memory is not just about forgetting keys; it's about losing independence, dignity, and connection to loved ones. Existing solutions are either simple alarms (which are forgotten) or complex screens (which are overwhelming).
 
-**The Solution**: **Memora**. A passive, multimodal AI guardian that acts as an external hippocampus. It ingests life—voice conversations, visual cues, and caregiver notes—and proactively surfaces the right information at the right time.
+**The Solution**: **Memora**. A passive, multimodal AI guardian that acts as an external hippocampus. It ingests life voice conversations, visual cues, and caregiver notes and proactively surfaces the right information at the right time.
 
 ## 02. System Architecture
 Memora is built on a **Neural Retrieval Architecture** where "Context" is King.
