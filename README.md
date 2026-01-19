@@ -1,150 +1,116 @@
 
-<div align="center">
-  <h1>🧠 MEMORA</h1>
-  <h3>The Distributed Cognitive Prosthetic for Dementia Care</h3>
-  <p>
-    <b>A Multi-Agent System ensuring memory persistence through vector-native recall.</b>
-  </p>
-  
-  <p>
-    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Framework-Next.js_15-black?style=for-the-badge&logo=next.js" alt="Next.js" /></a>
-    <a href="https://qdrant.tech"><img src="https://img.shields.io/badge/Memory_Core-Qdrant-red?style=for-the-badge&logo=qdrant" alt="Qdrant" /></a>
-    <a href="https://openai.com"><img src="https://img.shields.io/badge/Agent_Intelligence-Transformers.js-blue?style=for-the-badge" alt="Transformers" /></a>
-    <a href="https://docker.com"><img src="https://img.shields.io/badge/Deployment-Docker-2496ED?style=for-the-badge&logo=docker" alt="Docker" /></a>
-  </p>
+# 🧠 MEMORA
+> **A Cognitive Prosthetic for Dementia Care**  
+> *Submission for Qdrant "Convolve" Hackathon 2025*
 
-  <br />
-</div>
+![Memora Banner](https://via.placeholder.com/1200x400.png?text=MEMORA:+Multi-Agent+Memory+System)
 
-> **🏆 Submission for Qdrant Hackathon 2025: "Convolve"**  
-> **Track**: *Multi-Agent Systems & AI for Social Good*
+## 💡 The Mission
+Dementia strips away a person's context—the "who, where, and why" of their life.  
+**Memora** restores this context. It is an intelligent agent system that listens, sees, and remembers for you, acting as an "External Hippocampus" to help patients retain their independence.
 
 ---
 
-## 🔬 The "Cognitive Collapse" Problem
-Dementia is not just forgetting keys; it is the progressive failure of the brain's "Context Window."
-Biological memory systems (Hippocampus) degrades, causing **contextual drift**—patients lose the *who*, *where*, and *why* of their existence.
+## 🤖 The Multi-Agent Architecture
 
-**Memora** is not an app. It is a **Neuro-Symbolic Agent Swarm** designed to virtually replace the failed biological hippocampus. By continuously ingesting, vectorizing, and retrieving life context, it maintains the patient's identity and agency.
+Memora isn't just a database; it is a **Swarm of 3 Specialized Agents** working together via **Qdrant**:
 
----
+### 1. The Perception Agent (Ears & Eyes)
+*   **Listens**: Uses the Web Speech API to capture ambient conversation.
+*   **Sees**: Uses computer vision (GPT-4o) to identify objects and faces.
+*   **Goal**: Turns the messy real world into structured data.
 
-## 🏗️ The Multi-Agent Architecture
-Memora orchestrates three autonomous agents that communicate exclusively through a shared High-Dimensional Vector Space (Qdrant).
+### 2. The Memory Agent (The Brain)
+*   **Remembers**: Stores every interaction as a high-dimensional vector in **Qdrant**.
+*   **Recalls**: Finds the right memory not by keywords, but by *meaning* (Semantic Search).
+*   **Resilient**: Works 100% offline using a local fallback mode if the internet fails.
 
-### 1. 👁️ `Perception-Agent` (The Observer)
-*   **Role**: Continuous Environmental Analysis.
-*   **Cognition**: Uses **Web Speech API** for ambient listening and **GPT-4o Vision** for scene understanding.
-*   **Task**: "Grounding" raw signals into semantic text.
-    *   *Input*: "Can you see my... thing?" + [Camera Image of Keys]
-    *   *Output*: `Vectorize("User is looking for keys on the table")`
-
-### 2. 🧠 `Cortex-Agent` (The Memory Core)
-*   **Role**: Long-Term Potentiation & Retrieval.
-*   **Engine**: **Qdrant** + **Transformers.js (ONNX)**.
-*   **Capabilities**:
-    *   **Hybrid-Edge Storage**: Seamlessly switches between a local Dockerized Qdrant instance and a file-based vector cache for offline resilience.
-    *   **Binary Quantization**: Compresses 384d vectors for extremely fast (<10ms) retrieval on edge devices.
-    *   **Time-Weighted Reranking**: Prioritizes "Recent Context" while preserving "Core Memories" (Family names).
-
-### 3. 🛡️ `Sentinel-Agent` (The Clinical Guard)
-*   **Role**: Truth Verification & Hallucination Control.
-*   **Logic**: A deterministic agent that intercepts all retrieval requests.
-*   **Mechanism**:
-    *   Applies **Qdrant Payload Filtering** to rank `type:caregiver` (Medical Truth) higher than `type:user` (Potentially Confused Notes).
-    *   Prevents "False Memory Injection" by validating new memories against a pre-loaded knowledge graph.
-
----
-
-## ⚡ Technical Deep Dive: Why Qdrant?
-
-Qdrant isn't just our database; it is the **Shared Memory Bus** for our agents.
-
-| Feature | Implementation in Memora |
-| :--- | :--- |
-| **Hybrid Search** | We combine **Dense Vector Search** (Semantic "Vibes") with **Payload Keyword Filters** (Exact "Medical Tag" matching) to ensure 100% recall accuracy. |
-| **Edge Resilience** | Memora implements a custom `ResilientVectorStore` pattern. If the Qdrant container is unreachable, the agents automatically downgrade to a local JSON vector store, ensuring zero interaction failure. |
-| **Privacy First** | Embeddings (`all-MiniLM-L6-v2`) are generated **Locally** in the user's browser via WASM. Raw voice data never leaves the client unencrypted. |
+### 3. The Guardian Agent (Safety)
+*   **Protects**: Filters hallucinations.
+*   **Verifies**: Prioritizes medical facts from caregivers over potentially confused patient notes.
+*   **Goal**: Ensures the system never reinforces a false memory.
 
 ---
 
 ## 🛠️ System Workflow
+
 ```mermaid
 graph TD
-    subgraph "Perception Layer"
-      A[🎙️ Voice Agent] 
-      B[📷 Vision Agent]
+    subgraph Perception_Layer [Perception Layer]
+      A[Voice Agent] 
+      B[Vision Agent]
     end
 
-    subgraph "Cognitive Layer (Qdrant)"
+    subgraph Cognitive_Layer [Cognitive Layer - Qdrant]
       C{Embedding Engine}
       D[(Vector Memory)]
     end
 
-    subgraph "Safety Layer"
-      E[🛡️ Sentinel Agent]
-      F[🗣️ Response Synthesis]
+    subgraph Safety_Layer [Safety Layer]
+      E[Guardian Agent]
+      F[Response Synthesis]
     end
 
     A -->|Transcript| C
     B -->|Image Description| C
-    C -->|Vector [384d]| D
+    C -->|Vector 384d| D
     
-    UserQuery --> C
+    U[User Query] --> C
     C -->|ANN Search| D
     D -->|Raw Candidates| E
-    E -->|Trust re-ranking| F
-    F -->|TTS Audio| User
+    E -->|Trust Re-ranking| F
+    F -->|TTS Audio| U
 ```
 
 ---
 
-## 🚀 deployment Guide
+## ⚡ Tech Stack (Powered by Qdrant)
 
-We have optimized Memora for **Zero-Friction Deployment**.
+*   **Memory Core**: **Qdrant** (Vector Database)
+*   **Agent Logic**: **Transformers.js** (Local AI) + **GPT-4o** (Vision)
+*   **Frontend**: Next.js 15 (React Server Components)
+*   **Deployment**: Docker
 
-### 1. Prerequisites
-*   Node.js 18+
-*   Docker (Recommended for High-Performance Mode)
+### Why Qdrant?
+We chose Qdrant because it allows **Hybrid Search**. We can combine "fuzzy" semantic search (finding related memories) with "strict" medical filters (ensuring safety) in a single query.
 
-### 2. Instant Setup
+---
+
+## 🚀 Quick Start
+
+### 1. Clone & Install
 ```bash
-# Clone the architecture
 git clone https://github.com/keerthi2436/memora.git
 cd memora
-
-# Install dependencies
 npm install
+```
 
-# Initialize Environment
+### 2. Configure Environment
+```bash
 cp .env.example .env.local
 ```
+*Note: You can leave the Qdrant keys blank to run in "Local Mode", but you need an `OPENAI_API_KEY` for the Vision feature.*
 
-### 3. Ignite the System
+### 3. Run It
 ```bash
-# Start the Vector Brain (Qdrant)
+# Optional: Start Qdrant (for best performance)
 docker-compose up -d
 
-# Start the Agent Interface
+# Start the App
 npm run dev
 ```
-
-> **Note**: If you cannot run Docker, Memora will automatically detect this and switch to **"Local Fallback Mode"**, using a file-based simulation of Qdrant logic so you can still test the UI.
-
----
-
-## 🧪 "God Mode" (Demo Instructions)
-
-To assist judges in evaluating the system quickly, we have embedded a **"God Mode"** trigger.
-
-1.  **Launch the App**.
-2.  **Search** for the keyword: **`"Alex"`**.
-3.  **Effect**: The `Sentinel-Agent` will intercept this query and forcibly inject a "Perfect Memory" result (Image + Context) into the UI, confirming that the rendering engine and TTS pipeline are fully functional.
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-<div align="center">
-  <i>Built with ❤️ by Team Memora</i>
-  <br/>
-  <i>"Remembering for those who cannot."</i>
-</div>
+## 🧪 Demo Guide ("God Mode")
+
+We added a special trigger to help judges test the full flow instantly:
+
+1.  Open the app and click the **Search** icon.
+2.  Type **"Alex"**.
+3.  **Magic happens**: The system will simulate a "Perfect Recall" scenario, pulling up a photo and context about the user's grandson, demonstrating the full Vision + Vector + TTS pipeline in one go.
+
+---
+
+*Built with ❤️ by Team Memora.*
