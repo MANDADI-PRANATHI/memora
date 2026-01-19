@@ -3,7 +3,6 @@
 > **A Cognitive Prosthetic for Dementia Care**  
 > *Submission for Qdrant "Convolve" Hackathon 2025*
 
-![Memora Banner](https://via.placeholder.com/1200x400.png?text=MEMORA:+Multi-Agent+Memory+System)
 
 ## 💡 The Mission
 Dementia strips away a person's context—the "who, where, and why" of their life.  
@@ -113,4 +112,3 @@ We added a special trigger to help judges test the full flow instantly:
 
 ---
 
-*Built with ❤️ by Team Memora.*
