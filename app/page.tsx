@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Camera, Search, Brain, Calendar, Heart, User, LogOut } from "lucide-react";
+import { Mic, Camera, Search, Brain, Calendar, Heart, User, LogOut, Lock as LockIcon, Eye as EyeIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { SearchModal } from "@/components/SearchModal";
@@ -45,7 +45,7 @@ export default function Home() {
     // Poll for recent memories every 5 seconds (simple real-time update)
     const fetchRecent = async () => {
       try {
-        const res = await fetch('/api/memories?role=patient');
+        const res = await fetch('/api/memories?role=patient', { cache: 'no-store' });
         const data = await res.json();
         if (data.result) {
           setRecentMemories(data.result);
@@ -198,7 +198,6 @@ export default function Home() {
 
 // Privacy Indicator helper
 function PrivacyBadge({ isShared }: { isShared: boolean }) {
-  const { Lock, Eye } = require("lucide-react"); // Dynamic import for cleaner file structure or just standard import
   return (
     <div className={cn(
       "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wider font-medium",
@@ -206,7 +205,7 @@ function PrivacyBadge({ isShared }: { isShared: boolean }) {
         ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
         : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
     )}>
-      {isShared ? <Eye className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+      {isShared ? <EyeIcon className="w-3 h-3" /> : <LockIcon className="w-3 h-3" />}
       {isShared ? "Shared" : "Private"}
     </div>
   );
@@ -217,24 +216,46 @@ function MockMemoryCard({ title, time, preview, type, tags, imageDetails }: { ti
   const isAudio = type === 'audio';
   const isImage = type === 'image';
   const isCaregiver = type === 'caregiver';
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Privacy Logic: Safe tags are shared, everything else is private
   const safeTags = ['caregiver', 'health', 'emergency', 'external'];
   const isShared = isCaregiver || tags?.some(t => safeTags.includes(t)) || false;
 
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(preview);
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+
+    // Choose a nice voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.name.includes("Female") || v.name.includes("Google US English"));
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    window.speechSynthesis.speak(utterance);
+    setIsPlaying(true);
+  };
+
   return (
     <div className={cn(
-      "p-4 rounded-2xl glass hover:bg-white/5 transition-colors border flex items-start gap-4", // changed items-center to items-start for multiline
+      "p-4 rounded-2xl glass hover:bg-white/5 transition-colors border flex items-start gap-4 group cursor-pointer", // Added cursor-pointer
       isCaregiver ? "border-teal-500/30 bg-teal-500/5" : "border-white/5"
     )}>
       <div className={cn(
-        "w-12 h-12 rounded-full flex items-center justify-center shrink-0 mt-1", // added mt-1 for alignment
+        "w-12 h-12 rounded-full flex items-center justify-center shrink-0 mt-1 transition-transform group-hover:scale-110", // Added hover scale
         isAudio ? "bg-primary/20 text-primary" :
           isImage ? "bg-secondary/20 text-secondary" :
             isCaregiver ? "bg-teal-500/20 text-teal-300" :
               "bg-accent/20 text-accent"
       )}>
-        {isAudio && <Mic className="w-5 h-5" />}
+        {isAudio && (isPlaying ? <span className="animate-pulse">🔊</span> : <Mic className="w-5 h-5" />)}
         {isImage && <Camera className="w-5 h-5" />}
         {isCaregiver && <Heart className="w-5 h-5" />}
         {!isAudio && !isImage && !isCaregiver && <User className="w-5 h-5" />}
@@ -247,13 +268,36 @@ function MockMemoryCard({ title, time, preview, type, tags, imageDetails }: { ti
           </div>
           <PrivacyBadge isShared={isShared} />
         </div>
-        <p className="text-sm text-gray-300 line-clamp-2 mb-2">{preview}</p>
+        <p className="text-sm text-gray-300 line-clamp-2 mb-2 group-hover:text-white transition-colors">{preview}</p>
 
-        {/* Render Image Thumbnail if available (Demo Hack) */}
+        {/* Render Image Thumbnail */}
         {imageDetails && (
           <div className="mt-2 w-full max-w-[200px] rounded-lg overflow-hidden border border-white/10">
             <img src={imageDetails} alt="Visual Memory" className="w-full h-auto object-cover opacity-80 hover:opacity-100 transition-opacity" />
           </div>
+        )}
+
+        {/* Play Action for Audio */}
+        {isAudio && (
+          <button
+            onClick={handlePlay}
+            className="mt-2 text-xs flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors font-medium border border-primary/10"
+          >
+            {isPlaying ? (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                Stop Playing
+              </>
+            ) : (
+              <>
+                <Mic className="w-3 h-3" />
+                Play Recording
+              </>
+            )}
+          </button>
         )}
       </div>
     </div>

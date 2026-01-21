@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ['@xenova/transformers', '@qdrant/js-client-rest'],
 };
 
 export default nextConfig;

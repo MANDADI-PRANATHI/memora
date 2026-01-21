@@ -22,7 +22,7 @@ export default function CaregiverDashboard() {
     useEffect(() => {
         const fetchRecent = async () => {
             try {
-                const res = await fetch('/api/memories?role=caregiver');
+                const res = await fetch('/api/memories?role=caregiver', { cache: 'no-store' });
                 const data = await res.json();
                 if (data.result) {
                     setRecentMemories(data.result);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, StopCircle, X, Loader2, CheckCircle2 } from "lucide-react";
+import { Mic, StopCircle, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface VoiceRecorderProps {
@@ -12,74 +12,154 @@ interface VoiceRecorderProps {
 export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [status, setStatus] = useState<"idle" | "recording" | "processing" | "success">("idle");
+    const [status, setStatus] = useState<"idle" | "recording" | "processing" | "success" | "error">("idle");
+    const [errorMessage, setErrorMessage] = useState("");
     const [transcript, setTranscript] = useState("");
 
-    // Web Speech API
+    // Web Speech API Refs
     const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
+            // Browser Compatibility Check
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-            if (!SpeechRecognition) return;
+            if (!SpeechRecognition) {
+                setErrorMessage("Speech API not supported. Please use Chrome/Edge.");
+                setStatus("error");
+                return;
+            }
 
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;     // Keep recording even if user pauses
+            recognition.interimResults = true; // Show results immediately
+            recognition.lang = 'en-US';
 
-            recognitionRef.current.onresult = (event: any) => {
-                let finalTranscript = "";
+            recognition.onstart = () => {
+                console.log("Speech recognition started");
+                setIsRecording(true);
+                setStatus("recording");
+                setErrorMessage("");
+            };
+
+            recognition.onend = () => {
+                console.log("Speech recognition ended unexpectedly");
+                // If we didn't manually stop it, it might have timed out.
+                // We let the UI handle the state.
+            };
+
+            recognition.onresult = (event: any) => {
+                let currentInterim = "";
+                let currentFinal = "";
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
+                        currentFinal += event.results[i][0].transcript;
+                    } else {
+                        currentInterim += event.results[i][0].transcript;
                     }
                 }
-                if (finalTranscript) {
-                    setTranscript(prev => prev + " " + finalTranscript);
+
+                // Update the transcript state
+                setTranscript(prev => {
+                    // Logic: If there is a new "final" sentence, append it to the solid history.
+                    // If there is just interim, show it (but don't save it to history yet purely).
+                    // BUT for this simple UI, we just want to see "everything so far".
+
+                    // The simplest way that works for most demos:
+                    // Just concatenate "all final results so far" + "current interim"
+                    // However, `prev` already contains old final results.
+
+                    // Actually, `event.resultIndex` tells us where to start.
+                    // A safer hack for React without complex state management:
+                    // Just use the accumulator logic carefully.
+
+                    if (currentFinal) {
+                        return prev + " " + currentFinal;
+                    }
+                    // For interim: We can't easily "preview" it without complex state splitting (final vs interim)
+                    // So we will just append it to a SEPARATE Ref or just rely on the fact that
+                    // users speak continuously.
+
+                    // IMPROVED LOGIC: simple append if we have results.
+                    return prev;
+                });
+
+                // FORCE UPDATE for visual feedback (dirty but works)
+                if (currentFinal || currentInterim) {
+                    const text = currentFinal || currentInterim;
+                    // Only update if we have something substantive
+                    if (text.trim().length > 0) {
+                        // We actually need to re-render. 
+                        // The setTranscript(prev) above might be tricky with interim.
+                        // Let's use a simpler approach:
+                    }
                 }
             };
 
-            recognitionRef.current.onerror = (event: any) => {
-                console.error("Speech recognition error", event.error);
-                if (event.error === 'not-allowed') {
-                    alert("Microphone access denied. Please allow microphone permissions.");
-                    setStatus("idle");
-                    setIsRecording(false);
+            // SIMPLIFIED ONRESULT for reliability:
+            recognition.onresult = (event: any) => {
+                let finalStr = "";
+                let interimStr = "";
+
+                for (let i = 0; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalStr += event.results[i][0].transcript;
+                    } else {
+                        interimStr += event.results[i][0].transcript;
+                    }
                 }
+                setTranscript(finalStr + " " + interimStr);
             };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+                if (event.error === 'no-speech') return;
+
+                setErrorMessage(`Error: ${event.error}`);
+                setStatus("error");
+                setIsRecording(false);
+            };
+
+            recognitionRef.current = recognition;
         }
     }, []);
 
     const startRecording = () => {
-        if (!recognitionRef.current) {
-            alert("Your browser does not support speech recognition. Try Chrome.");
-            return;
+        if (!recognitionRef.current) return;
+
+        try {
+            setTranscript("");
+            setErrorMessage("");
+            recognitionRef.current.start();
+        } catch (e) {
+            console.error(e);
+            recognitionRef.current.stop();
+            setTimeout(() => recognitionRef.current.start(), 200);
         }
-        setTranscript("");
-        recognitionRef.current.start();
-        setIsRecording(true);
-        setStatus("recording");
     };
 
-    const stopRecording = async () => {
-        if (recognitionRef.current && isRecording) {
+    const stopRecording = () => {
+        if (recognitionRef.current) {
             recognitionRef.current.stop();
             setIsRecording(false);
             setStatus("processing");
+            setIsProcessing(true);
 
-            // Wait a moment for final result
-            setTimeout(() => handleSaveMemory(), 1000);
+            // Wait for final 'onresult' event
+            setTimeout(saveMemory, 1500);
         }
     };
 
-    const handleSaveMemory = async () => {
-        if (!transcript.trim()) {
-            // Sometimes it's too fast, try one last check or fail gracefully
-            if (!transcript) {
-                setStatus("idle");
-                return;
-            }
+    const saveMemory = async () => {
+        let cleanText = transcript.replace(/\s+/g, ' ').trim();
+        cleanText = cleanText.replace(/undefined/g, "");
+
+        if (!cleanText || cleanText.length < 2) {
+            setErrorMessage("No speech detected. Please speak louder.");
+            setStatus("error");
+            setIsProcessing(false);
+            return;
         }
 
         try {
@@ -87,8 +167,8 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    text: transcript,
-                    type: 'audio', // Stored as "audio" type but source is just text now
+                    text: cleanText,
+                    type: 'audio',
                     tags: ['voice-transcribed']
                 }),
             });
@@ -96,13 +176,16 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
 
             if (data.success) {
                 setStatus("success");
+                setTimeout(() => {
+                    if (isOpen) handleClose();
+                }, 2000);
             } else {
-                console.error(data.error);
-                setStatus("idle");
+                setErrorMessage(data.error || "Failed to save.");
+                setStatus("error");
             }
         } catch (err) {
-            console.error(err);
-            setStatus("idle");
+            setErrorMessage("Network error.");
+            setStatus("error");
         } finally {
             setIsProcessing(false);
         }
@@ -115,6 +198,7 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
         }
         setStatus("idle");
         setTranscript("");
+        setErrorMessage("");
         onClose();
     };
 
@@ -134,7 +218,7 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="relative w-full max-w-md bg-white/10 border border-white/20 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl backdrop-blur-xl"
+                        className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl"
                     >
                         <button
                             onClick={handleClose}
@@ -143,13 +227,22 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <h2 className="text-2xl font-bold mb-2">Record Memory</h2>
-                        <p className="text-gray-400 mb-8 h-6">
-                            {status === "idle" && "Tap to start speaking."}
-                            {status === "recording" && "Listening..."}
-                            {status === "processing" && "Saving..."}
-                            {status === "success" && "Memory saved!"}
-                        </p>
+                        <h2 className="text-2xl font-bold mb-2 text-white">Record Memory</h2>
+
+                        <div className="h-6 mb-8">
+                            {status === "error" ? (
+                                <p className="text-red-400 font-medium flex items-center justify-center gap-2">
+                                    <AlertCircle className="w-4 h-4" /> {errorMessage}
+                                </p>
+                            ) : (
+                                <p className="text-gray-400 font-medium">
+                                    {status === "idle" && "Tap to start speaking."}
+                                    {status === "recording" && "Listening..."}
+                                    {status === "processing" && "Saving Memory..."}
+                                    {status === "success" && "Memory Saved!"}
+                                </p>
+                            )}
+                        </div>
 
                         <div className="relative mb-8">
                             {status === "recording" && (
@@ -161,13 +254,14 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
 
                             <button
                                 onClick={status === "recording" ? stopRecording : startRecording}
-                                disabled={isProcessing}
+                                disabled={isProcessing || status === "success"}
                                 className={`
                                     relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300
                                     ${status === "recording" ? 'bg-red-500 scale-110' :
                                         status === "success" ? 'bg-green-500' :
-                                            'bg-primary hover:bg-primary/80'}
-                                    ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+                                            status === "error" ? 'text-white bg-primary' :
+                                                'bg-primary hover:bg-primary/80'}
+                                    ${(isProcessing || status === "success") ? 'cursor-default' : 'cursor-pointer'}
                                 `}
                             >
                                 {isProcessing ? (
@@ -183,13 +277,15 @@ export function VoiceRecorder({ isOpen, onClose }: VoiceRecorderProps) {
                         </div>
 
                         {/* Recent Transcript Live View */}
-                        <div className="w-full min-h-[60px] bg-white/5 rounded-xl p-4 text-left border border-white/5">
-                            <p className="text-xs text-uppercase text-gray-500 font-semibold mb-1">TRANSCRIPT</p>
-                            <p className="text-sm text-gray-200">{transcript || "..."}</p>
+                        <div className="w-full min-h-[80px] bg-black/50 rounded-xl p-4 text-left border border-white/10">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">TRANSCRIPT</p>
+                            <p className="text-sm text-gray-200 leading-relaxed">
+                                {transcript || <span className="text-gray-600 italic">...</span>}
+                            </p>
                         </div>
 
-                        <p className="text-xs text-gray-500 mt-6 max-w-xs">
-                            Using browser speech recognition (Free).
+                        <p className="text-xs text-gray-600 mt-6 max-w-xs">
+                            Browser speech recognition provides free, unlimited transcription.
                         </p>
 
                     </motion.div>
